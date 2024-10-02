@@ -27,7 +27,8 @@ for j in range(1000):
     x_new = x[j] - (f(x[j]) / df(x[j]))
     x = np.append(x, x_new)
 
-print("A1:", x)
+A1 = x
+print("A1:", A1)
 
 # Bisection method
 a = -0.7
@@ -48,10 +49,12 @@ for j in range(1000):
     if abs(f_n) < TOL:
         break
 
+A2 = c_n
 print("A2:", c_n)
 
 # 1 x 2 vector with the number of iterations for the Newton and bisection
-print("A3:", [len(x), len(c_n)])
+A3 = [len(x), len(c_n)]
+print("A3:", A3)
 
 # ----------Q2----------
 
@@ -102,28 +105,37 @@ z = np.array([[1],
 # display(z)
 
 # (a) A + B
-print("\nA4: A + B = "), display(A + B)
+A4 = A + B
+print("\nA4: A + B = "), display(A4)
 
 # (b) 3x - 4y
-print("\nA5: 3x - 4y = "), display(3 * x - 4 * y)
+A5 = 3 * x - 4 * y
+print("\nA5: 3x - 4y = "), display(A5)
 
 # (c) Ax
-print("\nA6: Ax = "), display(np.dot(A, x))
+A6 = np.dot(A, x)
+print("\nA6: Ax = "), display(A6)
 
 # (d) B(x-y)
-print("\nA7: B(x - y) = "), display(np.dot(B, (x - y)))
+A7 = np.dot(B, (x - y))
+print("\nA7: B(x - y) = "), display(A7)
 
 # (e) Dx
-print("\nA8: Dx = "), display(np.dot(D, x))
+A8 = np.dot(D, x)
+print("\nA8: Dx = "), display(A8)
 
 # (f) Dy + z
-print("\nA9: Dy + z = "), display(np.dot(D, y) + z)
+A9 = np.dot(D, y) + z
+print("\nA9: Dy + z = "), display(A9)
 
 # (g) AB
-print("\nA10: AB = "), display(np.dot(A, B))
+A10 = np.dot(A, B)
+print("\nA10: AB = "), display(A10)
 
 # (h) BC
-print("\nA11: BC = "), display(np.dot(B, C))
+A11 = np.dot(B, C)
+print("\nA11: BC = "), display(A11)
 
 # (i) CD
-print("\nA12: CD = "), display(np.dot(C, D))
+A12 = np.dot(C, D)
+print("\nA12: CD = "), display(A12)
