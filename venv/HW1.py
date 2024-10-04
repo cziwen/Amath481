@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 # Ziwen Chen
 
 
@@ -14,9 +15,18 @@ def f(x):
 def df(x):
     return np.sin(3 * x) + 3 * x * np.cos(3 * x) - np.exp(x)
 
-
 TOL = 1e-6
 
+
+# Plot to see the function
+dx = 0.05
+x = np.arange(-1, 1+dx,dx)
+plt.plot(x,f(x))
+plt.axis([-1, 1, -1, 1])
+plt.xlabel("x")
+plt.ylabel("f(x)")
+plt.grid()
+plt.show()
 
 
 # Newton-Raphson method
