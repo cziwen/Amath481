@@ -77,42 +77,42 @@ A = np.array([[1, 2], [-1, 1]])
 B = np.array([[2, 0], [0, 2]])
 C = np.array([[2, 0, -3], [0, 0, -1]])
 D = np.array([[1, 2], [2, 3], [-1, 0]])
-x = np.array([[1], [0]])
-y = np.array([[0], [1]])
-z = np.array([[1], [2], [-1]])
+x = np.array([1 ,0])
+y = np.array([0, 1])
+z = np.array([1, 2, -1])
 
 # (a) A + B
 A4 = A + B
-print("\nA + B = \n", A4)
+print("\nA4 A + B = \n", A4)
 
 # (b) 3x - 4y
 A5 = 3 * x - 4 * y
-print("\n3x - 4y = \n", A5)
+print("\nA5 3x - 4y = \n", A5)
 
 # (c) Ax
 A6 = np.dot(A, x)
-print("\nAx = \n", A6)
+print("\nA6 Ax = \n", A6)
 
 # (d) B(x - y)
 A7 = np.dot(B, (x - y))
-print("\nB(x - y) = \n", A7)
+print("\nA7 B(x - y) = \n", A7)
 
 # (e) Dx
 A8 = np.dot(D, x)
-print("\nDx = \n", A8)
+print("\nA8 Dx = \n", A8)
 
 # (f) Dy + z
 A9 = np.dot(D, y) + z
-print("\nDy + z = \n", A9)
+print("\nA9 Dy + z = \n", A9)
 
 # (g) AB
 A10 = np.dot(A, B)
-print("\nAB = \n", A10)
+print("\nA10 AB = \n", A10)
 
 # (h) BC
 A11 = np.dot(B, C)
-print("\nBC = \n", A11)
+print("\nA11 BC = \n", A11)
 
 # (i) CD
 A12 = np.dot(C, D)
-print("\nCD = \n", A12)
+print("\nA12 CD = \n", A12)
