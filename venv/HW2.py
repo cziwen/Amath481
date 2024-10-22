@@ -104,9 +104,9 @@ for modes in range (1, 6):  # begin mode loop
 
         # Adjust beta based on the boundary value at x = L
         if (-1) ** (modes + 1) * (y[-1, 1] + np.sqrt (K * L ** 2 - beta) * y [-1, 0]) > 0:
-            beta += dbeta
+            beta += dbeta # tuning down
         else:
-            beta -= dbeta
+            beta -= dbeta # tuning up
             dbeta /= 2
 
 
