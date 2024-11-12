@@ -38,7 +38,7 @@ diagonals_A = [e1.flatten (), e1.flatten (), e5.flatten (),
                e4.flatten (), e1.flatten (), e1.flatten ()]
 offsets_A = [-(n - m), -m, -m + 1, -1, 0, 1, m - 1, m, (n - m)]
 
-A = spdiags (diagonals_A, offsets_A, n, n).toarray ()
+A = spdiags (diagonals_A, offsets_A, n, n) / (delta ** 2)
 
 # 可视化 A 矩阵结构
 plt.figure (figsize=(8, 8))
@@ -111,9 +111,14 @@ plt.show ()
 
 
 #================ 将矩阵 A, B, C 以密集格式输出 ==============
-A_dense = A
+A_dense = A.toarray ()
 B_dense = B.toarray ()
 C_dense = C.toarray ()
+
+
+A1 = A_dense
+A2 = B_dense
+A3 = C_dense
 
 print ("Matrix A:\n", A_dense)
 print ("\nMatrix B (∂x):\n", B_dense)
