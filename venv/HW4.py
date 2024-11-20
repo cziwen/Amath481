@@ -39,51 +39,27 @@ diagonals_A = [e1.flatten (), e1.flatten (), e5.flatten (),
 offsets_A = [-(n - m), -m, -m + 1, -1, 0, 1, m - 1, m, (n - m)]
 
 A = spdiags (diagonals_A, offsets_A, n, n) / (delta ** 2)
+A_hw4 = A
 
 # 可视化 A 矩阵结构
-plt.figure (figsize=(8, 8))
-plt.spy (A)
-plt.title ('Matrix Structure A')
-plt.show ()
-
-# ===================== 构建 B 矩阵 (∂x) ===========================
-
-# # 构建新的 e3 和 e5，以实现 B 矩阵的周期性边界条件
-# e3_B = np.zeros_like (e1)
-# e5_B = np.zeros_like (e1)
-#
-# for i in range (1, n):
-#     e3_B[i] = e1[i - 1]  # 向左移动一位
-#     e5_B[i - 1] = e1[i]  # 向右移动一位
-# e3_B[0] = e1[-1]  # 周期性连接最后一个元素
-# e5_B[-1] = e1[0]  # 周期性连接第一个元素
-#
-# # B 矩阵的对角线设置需要包括周期性边界
-# diagonals_B = [-e3_B.flatten (), e5_B.flatten ()]
-# offsets_B = [-1, 1]  # 中心差分在 x 方向的偏移
-# B = spdiags (diagonals_B, offsets_B, n, n) / (2 * delta)
-#
-# # 可视化 B 矩阵结构
-# plt.figure ()
-# plt.spy (B)
-# plt.title ('Matrix Structure B (∂x)')
+# plt.figure (figsize=(8, 8))
+# plt.spy (A)
+# plt.title ('Matrix Structure A')
 # plt.show ()
 
-# 构建新的 e3 和 e5，以实现 B 矩阵的周期性边界条件
+# ===================== 构建 B 矩阵 (∂x) ===========================
 
 # B 矩阵的对角线设置需要包括周期性边界
 diagonals_B = [e1.flatten(), -e1.flatten() , e1.flatten(), -e1.flatten()]
 offsets_B = [-(n-m), -m, m, (n-m)]  # 中心差分在 x 方向的偏移
 B = spdiags (diagonals_B, offsets_B, n, n) / (2 * delta)
+B_hw4 = B
 
 # 可视化 B 矩阵结构
-plt.figure (figsize=(8, 8))
-plt.spy (B)
-plt.title ('Matrix Structure B (∂x)')
-plt.show ()
-
-
-
+# plt.figure (figsize=(8, 8))
+# plt.spy (B)
+# plt.title ('Matrix Structure B (∂x)')
+# plt.show ()
 
 # ===================== 构建 C 矩阵 (∂y) ===========================
 
@@ -96,12 +72,13 @@ for i in range (1, n):
 diagonals_C = [e1.flatten (), -e2.flatten (), e3.flatten(), -e4.flatten()]
 offsets_C = [-m + 1, -1, 1,  m - 1 ]  # 中心差分在 y 方向的偏移
 C = spdiags (diagonals_C, offsets_C, n, n) / (2 * delta)
+C_hw4 = C
 
 # 可视化 C 矩阵结构
-plt.figure (figsize=(8, 8))
-plt.spy (C)
-plt.title ('Matrix Structure C (∂y)')
-plt.show ()
+# plt.figure (figsize=(8, 8))
+# plt.spy (C)
+# plt.title ('Matrix Structure C (∂y)')
+# plt.show ()
 
 
 #================ 将矩阵 A, B, C 以密集格式输出 ==============
