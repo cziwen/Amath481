@@ -1,13 +1,15 @@
-from time import time_ns
-
 import numpy as np
 from matplotlib.animation import FuncAnimation
 from scipy.fftpack import fft2, ifft2
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
-from scipy.sparse import spdiags
+from scipy.sparse import spdiags, csr_matrix
 from scipy.linalg import lu, solve_triangular
 import time
+from scipy.sparse.linalg import bicgstab, gmres
+
+
+
 
 # 定义参数
 L = 10
@@ -46,7 +48,6 @@ diagonals_A = [e1.flatten (), e1.flatten (), e5.flatten (),
 offsets_A = [-(n - m), -m, -m + 1, -1, 0, 1, m - 1, m, (n - m)]
 
 A = spdiags (diagonals_A, offsets_A, n, n) / (delta ** 2)
-A_sparse = A
 
 # 可视化 A 矩阵结构
 # plt.figure (figsize=(8, 8))
@@ -60,7 +61,6 @@ A_sparse = A
 diagonals_B = [e1.flatten (), -e1.flatten (), e1.flatten (), -e1.flatten ()]
 offsets_B = [-(n - m), -m, m, (n - m)]  # 中心差分在 x 方向的偏移
 B = spdiags (diagonals_B, offsets_B, n, n) / (2 * delta)
-B_sparse = B
 
 # 可视化 B 矩阵结构
 # plt.figure (figsize=(8, 8))
@@ -78,7 +78,6 @@ for i in range (1, n):
 diagonals_C = [e1.flatten (), -e2.flatten (), e3.flatten (), -e4.flatten ()]
 offsets_C = [-m + 1, -1, 1, m - 1]  # 中心差分在 y 方向的偏移
 C = spdiags (diagonals_C, offsets_C, n, n) / (2 * delta)
-C_sparse = C
 
 # 可视化 C 矩阵结构
 # plt.figure (figsize=(8, 8))
@@ -123,140 +122,261 @@ K = KX ** 2 + KY ** 2
 
 # ================================= FFT ======================================
 
-# 定义ODE系统的右端项
-def spc_rhs (t, wt2, nx, ny, N, KX, KY, K, nu):
-    # fft转换 omega
-    w = wt2.reshape ((nx, ny))
-    wt = fft2 (w)
+# # 定义ODE系统的右端项
+# def spc_rhs (t, wt2, nx, ny, N, KX, KY, K, nu):
+#     # fft转换 omega
+#     w = wt2.reshape ((nx, ny))
+#     wt = fft2 (w)
+#
+#     # 求解psi
+#     psit = - wt / K
+#     psi = np.real (ifft2 (psit)).reshape (N)
+#
+#     rhs = (
+#             nu * A_dense.dot (wt2)  # nu (A w)
+#             + (B_dense.dot (wt2)) * (C_dense.dot (psi))  # - (B w) * (C psi) 和jenny答案符号相反（已经修改)
+#             - (B_dense.dot (psi)) * (C_dense.dot (wt2))  # + (B psi) * (C w)
+#     )
+#
+#     return rhs
+#
+#
+# start_time = time.time ()  # 记录时间
+#
+# # 使用 solve_ivp 进行求解
+# sol = solve_ivp (
+#     spc_rhs,
+#     (tspan[0], tspan[-1]),
+#     w0,
+#     t_eval=tspan,
+#     args=(nx, ny, N, KX, KY, K, nu),
+#     method='RK45'
+# )
+#
+# # 记录时间
+# end_time = time.time ()
+# elapsed_time = end_time - start_time
+# print (f"Elapsed time for FFT: {elapsed_time:.2f} seconds")
+#
+# # 提取解
+# wtsol_fft = sol.y  # 转置，保持与 tspan 对应
+# # 保存最终解 A1
+# A1 = wtsol_fft
+# # print(A1.shape)
+#
+#
+# # ================= 可视化结果 FFT ===================
+# sol_to_plot = A1
+#
+# # 确定每列的数据可以重塑为 n x n 的矩阵
+# n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
+#
+# fig, ax = plt.subplots (figsize=(6, 6))
+# cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
+# fig.colorbar (cax, ax=ax, label='Vorticity')
+# ax.set_title ('Vorticity Field - FFT')
+# ax.set_xlabel ('x')
+# ax.set_ylabel ('y')
+#
+#
+# def update (frame):
+#     ax.set_title (f'Vorticity Field at t = {frame * 0.5:.2f}')
+#     cax.set_data (sol_to_plot[:, frame].reshape ((n, n)))
+#     return cax,
+#
+#
+# anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
+# anim.save ('/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_FFT.gif', writer='imagemagick', fps=2)
 
-    # 求解psi
-    psit = - wt / K
-    psi = np.real (ifft2 (psit)).reshape (N)
-
-    rhs = (
-            nu * A_dense.dot (wt2)  # nu (A w)
-            + (B_dense.dot (wt2)) * (C_dense.dot (psi))  # - (B w) * (C psi) 和jenny答案符号相反（已经修改)
-            - (B_dense.dot (psi)) * (C_dense.dot (wt2))  # + (B psi) * (C w)
-    )
-
-    return rhs
-
-
-start_time = time.time ()  # 记录时间
-
-# 使用 solve_ivp 进行求解
-sol = solve_ivp (
-    spc_rhs,
-    (tspan[0], tspan[-1]),
-    w0,
-    t_eval=tspan,
-    args=(nx, ny, N, KX, KY, K, nu),
-    method='RK45'
-)
-
-# 记录时间
-end_time = time.time ()
-elapsed_time = end_time - start_time
-print (f"Elapsed time for FFT: {elapsed_time:.2f} seconds")
-
-# 提取解
-wtsol_fft = sol.y  # 转置，保持与 tspan 对应
-# 保存最终解 A1
-A1 = wtsol_fft
-# print(A1.shape)
-
-
-# ================= 可视化结果 FFT ===================
-sol_to_plot = A1
-
-# 确定每列的数据可以重塑为 n x n 的矩阵
-n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
-
-fig, ax = plt.subplots (figsize=(6, 6))
-cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
-fig.colorbar (cax, ax=ax, label='Vorticity')
-ax.set_title ('Vorticity Field - FFT')
-ax.set_xlabel ('x')
-ax.set_ylabel ('y')
-
-
-def update (frame):
-    ax.set_title (f'Vorticity Field at t = {frame * 0.5:.2f}')
-    cax.set_data (sol_to_plot[:, frame].reshape ((n, n)))
-    return cax,
-
-
-anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
-anim.save ('/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_FFT.gif', writer='imagemagick', fps=2)
 
 # ============================== A/b ================================
-
-def ab_rhs (t, w, A_dense, B_dense, C_dense, nu):
-    # 使用矩阵操作来计算右端项
-    psi = np.linalg.solve (A_dense, w)  # 解 A ψ = w，得到 ψ
-
-    rhs = (
-            nu * A_dense.dot (w)  # nu * A * w
-            + (B_dense.dot (w)) * (C_dense.dot (psi))  # + (B w) * (C ψ)
-            - (B_dense.dot (psi)) * (C_dense.dot (w))  # - (B ψ) * (C w)
-    )
-    return rhs
-
-
-start_time = time.time ()  # 记录时间
-
-# 使用 solve_ivp
-sol_ab = solve_ivp (
-    ab_rhs,
-    (tspan[0], tspan[-1]),  # 时间范围
-    w0,  # 初始条件
-    t_eval=tspan,  # 时间步
-    args=(A_dense, B_dense, C_dense, nu),  # 参数
-    method='RK45'  # 数值求解方法
-)
-
-# 记录时间
-end_time = time.time ()
-elapsed_time = end_time - start_time
-print (f"Elapsed time for A/b: {elapsed_time:.2f} seconds")
-
-# 提取解
-wtsol_ab = sol_ab.y  # 转置，保持与 tspan 对应
-A2 = wtsol_ab
-# print(A2)
-
-# ================= 可视化结果 A/b ===================
-sol_to_plot = A2
-
-# 确定每列的数据可以重塑为 n x n 的矩阵
-n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
-
-fig, ax = plt.subplots (figsize=(6, 6))
-cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
-fig.colorbar (cax, ax=ax, label='Vorticity')
-ax.set_title ('Vorticity Field - A/b')
-ax.set_xlabel ('x')
-ax.set_ylabel ('y')
-
-
-def update (frame):
-    ax.set_title (f'Vorticity Field at t = {frame * 0.5:.2f}')
-    cax.set_data (sol_to_plot[:, frame].reshape ((n, n)))
-    return cax,
-
-
-anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
-anim.save ("/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_Ab.gif", writer='imagemagick', fps=2)
+#
+# def ab_rhs (t, w, A_dense, B_dense, C_dense, nu):
+#     # 使用矩阵操作来计算右端项
+#     psi = np.linalg.solve (A_dense, w)  # 解 A ψ = w，得到 ψ
+#
+#     rhs = (
+#             nu * A_dense.dot (w)  # nu * A * w
+#             + (B_dense.dot (w)) * (C_dense.dot (psi))  # + (B w) * (C ψ)
+#             - (B_dense.dot (psi)) * (C_dense.dot (w))  # - (B ψ) * (C w)
+#     )
+#     return rhs
+#
+#
+# start_time = time.time ()  # 记录时间
+#
+# # 使用 solve_ivp
+# sol_ab = solve_ivp (
+#     ab_rhs,
+#     (tspan[0], tspan[-1]),  # 时间范围
+#     w0,  # 初始条件
+#     t_eval=tspan,  # 时间步
+#     args=(A_dense, B_dense, C_dense, nu),  # 参数
+#     method='RK45'  # 数值求解方法
+# )
+#
+# # 记录时间
+# end_time = time.time ()
+# elapsed_time = end_time - start_time
+# print (f"Elapsed time for A/b: {elapsed_time:.2f} seconds")
+#
+# # 提取解
+# wtsol_ab = sol_ab.y  # 转置，保持与 tspan 对应
+# A2 = wtsol_ab
+# # print(A2)
+#
+# # ================= 可视化结果 A/b ===================
+# sol_to_plot = A2
+#
+# # 确定每列的数据可以重塑为 n x n 的矩阵
+# n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
+#
+# fig, ax = plt.subplots (figsize=(6, 6))
+# cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
+# fig.colorbar (cax, ax=ax, label='Vorticity')
+# ax.set_title ('Vorticity Field - A/b')
+# ax.set_xlabel ('x')
+# ax.set_ylabel ('y')
+#
+#
+# def update (frame):
+#     ax.set_title (f'Vorticity Field at t = {frame * 0.5:.2f}')
+#     cax.set_data (sol_to_plot[:, frame].reshape ((n, n)))
+#     return cax,
+#
+#
+# anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
+# anim.save ("/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_Ab.gif", writer='imagemagick', fps=2)
 
 # ============================== LU ================================
 
-start_time = time.time ()  # 记录时间
+# start_time = time.time ()  # 记录时间
+#
+# P, L, U = lu (A_dense)
+#
+#
+# def lu_rhs (t, w, A_dense, B_dense, C_dense, nu, L, U, P):
+#     Pw = np.dot (P, w)
+#     y = solve_triangular (L, Pw, lower=True)
+#     psi = solve_triangular (U, y, lower=False)
+#
+#     rhs = (
+#             nu * A_dense.dot (w)  # nu * A * w
+#             + (B_dense.dot (w)) * (C_dense.dot (psi))  # + (B w) * (C ψ)
+#             - (B_dense.dot (psi)) * (C_dense.dot (w))  # - (B ψ) * (C w)
+#     )
+#
+#     return rhs
+#
+#
+# sol = solve_ivp (
+#     lu_rhs,
+#     (tspan[0], tspan[-1]),
+#     w0,
+#     t_eval=tspan,
+#     args=(A_dense, B_dense, C_dense, nu, L, U, P),
+#     method='RK45'
+# )
+#
+# end_time = time.time ()
+# elapsed_time = end_time - start_time
+# print (f"Elapsed time for LU: {elapsed_time:.2f} seconds")
+#
+# wtsol_lu = sol.y
+# A3 = wtsol_lu
+# # print (A3)
+#
+# # # ================= 可视化结果 LU ===================
+# sol_to_plot = A3
+#
+# # 确定每列的数据可以重塑为 n x n 的矩阵
+# n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
+#
+# fig, ax = plt.subplots (figsize=(6, 6))
+# cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
+# fig.colorbar (cax, ax=ax, label='Vorticity')
+# ax.set_title ('Vorticity Field - A/b')
+# ax.set_xlabel ('x')
+# ax.set_ylabel ('y')
+#
+#
+# def update (frame):
+#     ax.set_title (f'Vorticity Field at t = {frame * 0.5:.2f}')
+#     cax.set_data (sol_to_plot[:, frame].reshape ((n, n)))
+#     return cax,
+#
+#
+# anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
+# anim.save ("/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_LU.gif", writer='imagemagick', fps=2)
 
-P, L, U = lu (A_dense)
-def lu_rhs (t, w, A_dense, B_dense, C_dense, nu, L, U, P):
-    Pw = np.dot (P, w)
-    y = solve_triangular (L, Pw, lower=True)
-    psi = solve_triangular (U, y, lower=False)
+# ============================== BICGSTAB ================================
+
+# # 将修改过A[0,0] = 2的 A_dense 转换成 A_sparse
+# A_sparse = csr_matrix (A_dense)
+#
+#
+# def bicgstab_rhs (t, w, A_dense, B_dense, C_dense, nu):
+#     psi, info = bicgstab (A_sparse, w, atol=1e-8, maxiter=1000)
+#
+#     rhs = (
+#             nu * A_dense.dot (w)  # nu * A * w
+#             + (B_dense.dot (w)) * (C_dense.dot (psi))  # + (B w) * (C ψ)
+#             - (B_dense.dot (psi)) * (C_dense.dot (w))  # - (B ψ) * (C w)
+#     )
+#
+#     return rhs
+#
+#
+# start_time = time.time ()  # 记录时间
+#
+# sol = solve_ivp (
+#     bicgstab_rhs,
+#     (tspan[0], tspan[-1]),
+#     w0,
+#     t_eval=tspan,
+#     args=(A_dense, B_dense, C_dense, nu),
+#     method='RK45'
+# )
+#
+# end_time = time.time ()
+# elapsed_time = end_time - start_time
+# print (f"Elapsed time for BICGSTAB: {elapsed_time:.2f} seconds")
+#
+# wtsol_bicgstab = sol.y
+# A4 = wtsol_bicgstab
+# # print (A4.shape)
+#
+# # ================= 可视化结果 BICGSTAB ===================
+# sol_to_plot = A4
+#
+# # 确定每列的数据可以重塑为 n x n 的矩阵
+# n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
+#
+# fig, ax = plt.subplots (figsize=(6, 6))
+# cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
+# fig.colorbar (cax, ax=ax, label='Vorticity')
+# ax.set_title ('Vorticity Field - BICGSTAB')
+# ax.set_xlabel ('x')
+# ax.set_ylabel ('y')
+#
+#
+# def update (frame):
+#     ax.set_title (f'Vorticity Field at t = {frame * 0.5:.2f}')
+#     cax.set_data (sol_to_plot[:, frame].reshape ((n, n)))
+#     return cax,
+#
+#
+# anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
+# anim.save("/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_LU.gif", writer='pillow')
+
+# ============================ GMRES ==============================
+
+# 将修改过A[0,0] = 2的 A_dense 转换成 A_sparse
+A_sparse = csr_matrix (A_dense)
+
+
+def gmres_rhs(t, w, A_dense, B_dense, C_dense, nu):
+    psi, info = gmres (A_sparse, w, atol=1e-8, restart=50, maxiter=1000)
 
     rhs = (
             nu * A_dense.dot (w)  # nu * A * w
@@ -267,26 +387,27 @@ def lu_rhs (t, w, A_dense, B_dense, C_dense, nu, L, U, P):
     return rhs
 
 
+start_time = time.time ()
+
 sol = solve_ivp (
-    lu_rhs,
+    gmres_rhs,
     (tspan[0], tspan[-1]),
     w0,
     t_eval=tspan,
-    args=(A_dense, B_dense, C_dense, nu, L, U, P),
+    args=(A_dense, B_dense, C_dense, nu),
     method='RK45'
 )
 
 end_time = time.time ()
 elapsed_time = end_time - start_time
-print (f"Elapsed time for LU: {elapsed_time:.2f} seconds")
+print (f"Elapsed time for GMRES: {elapsed_time:.2f} seconds")
 
+wtsol_gmres = sol.y
+A5 = wtsol_gmres
+# print(A5.shape)
 
-wtsol_lu = sol.y
-A3 = wtsol_lu
-# print (A3)
-
-# # ================= 可视化结果 LU ===================
-sol_to_plot = A3
+# ================= 可视化结果 BICGSTAB ===================
+sol_to_plot = A5
 
 # 确定每列的数据可以重塑为 n x n 的矩阵
 n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
@@ -294,7 +415,7 @@ n = int (np.sqrt (sol_to_plot.shape[0]))  # n = sqrt(4096)
 fig, ax = plt.subplots (figsize=(6, 6))
 cax = ax.imshow (sol_to_plot[:, 0].reshape ((n, n)), extent=[-10, 10, -10, 10], cmap='jet')
 fig.colorbar (cax, ax=ax, label='Vorticity')
-ax.set_title ('Vorticity Field - A/b')
+ax.set_title ('Vorticity Field - GMRES')
 ax.set_xlabel ('x')
 ax.set_ylabel ('y')
 
@@ -306,4 +427,6 @@ def update (frame):
 
 
 anim = FuncAnimation (fig, update, frames=sol_to_plot.shape[1], blit=True)
-anim.save ("/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_LU.gif", writer='imagemagick', fps=2)
+anim.save("/Users/ziwenchen/PycharmProjects/Amath481/vorticity_evolution_GMRES.gif", writer='pillow')
+# =================================
+
