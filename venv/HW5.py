@@ -9,7 +9,7 @@ import time
 from scipy.sparse.linalg import bicgstab, gmres
 
 
-
+# Ziwen Chen
 
 # 定义参数
 L = 10
